@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transformer Self-Attention Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            margin-top: 50px; /* 50px vertical spacing at the top */
+            text-align: center;
+        }
+        .token {
+            display: inline-block;
+            position: relative;
+            margin: 0 20px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        #svgContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* So that mouse events pass through */
+        }
+        .attention-scores {
+            position: absolute;
+            top: 100%; /* Below the token */
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f0f0f0;
+            padding: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+        .attention-scores::before {
+            content: '[';
+            font-size: 24px;
+            margin-right: 5px;
+        }
+        .attention-scores::after {
+            content: ']';
+            font-size: 24px;
+            margin-left: 5px;
+        }
+        .attention-scores table {
+            border-collapse: collapse;
+        }
+        .attention-scores td {
+            padding: 2px 5px;
+            text-align: left;
+        }
+        .attention-scores td.score {
+            text-align: right;
+            width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <svg id="svgContainer"></svg>
+        <div class="token" data-token="0">The</div>
+        <div class="token" data-token="1">quick</div>
+        <div class="token" data-token="2">brown</div>
+        <div class="token" data-token="3">fox</div>
+    </div>
+    <script>
+        // Define attention scores
+        var attentionScores = [
+            // Attention scores when the token is 'The' (token index 0)
+            [0.1, 0.2, 0.3, 0.4], // Attention to 'The', 'quick', 'brown', 'fox'
+            // When the token is 'quick' (token index 1)
+            [0.25, 0.25, 0.25, 0.25],
+            // When the token is 'brown' (token index 2)
+            [0.4, 0.3, 0.2, 0.1],
+            // When the token is 'fox' (token index 3)
+            [0.1, 0.1, 0.4, 0.4]
+        ];
+
+        // Get all token elements
+        var tokens = document.querySelectorAll('.token');
+        var svgContainer = document.getElementById('svgContainer');
+
+        // Function to get the center position of a token
+        function getTokenCenter(token) {
+            var rect = token.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2 + window.scrollX,
+                y: rect.top + rect.height / 2 + window.scrollY
+            };
+        }
+
+        // Function to draw edges
+        function drawEdges(tokenIndex) {
+            // Clear previous edges
+            svgContainer.innerHTML = '';
+            var sourceToken = tokens[tokenIndex];
+            var sourcePos = getTokenCenter(sourceToken);
+
+            attentionScores[tokenIndex].forEach(function(score, targetIndex) {
+                var targetToken = tokens[targetIndex];
+                var targetPos = getTokenCenter(targetToken);
+
+                if (tokenIndex !== targetIndex) {
+                    // Draw a curved edge
+                    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    var thickness = score * 10; // Adjust multiplier as needed
+                    path.setAttribute('stroke-width', thickness);
+                    path.setAttribute('stroke', 'rgba(0,0,255,0.5)');
+                    path.setAttribute('fill', 'none');
+
+                    // Calculate control points for the curve to prevent overlapping
+                    var controlX = (sourcePos.x + targetPos.x) / 2;
+                    var controlY = Math.min(sourcePos.y, targetPos.y) - 50 - Math.abs(targetIndex - tokenIndex) * 10; // Adjust curve height
+
+                    var d = 'M' + sourcePos.x + ',' + sourcePos.y +
+                            ' Q' + controlX + ',' + controlY +
+                            ' ' + targetPos.x + ',' + targetPos.y;
+
+                    path.setAttribute('d', d);
+
+                    svgContainer.appendChild(path);
+                }
+            });
+        }
+
+        // Function to remove edges
+        function removeEdges() {
+            svgContainer.innerHTML = '';
+        }
+
+        // Function to show attention scores
+        function showAttentionScores(tokenIndex) {
+            var sourceToken = tokens[tokenIndex];
+
+            // Check if attention scores are already displayed
+            var existingScores = sourceToken.querySelector('.attention-scores');
+            if (existingScores) {
+                // Remove attention scores
+                existingScores.parentNode.removeChild(existingScores);
+                return;
+            }
+
+            // Create attention scores element
+            var scoresDiv = document.createElement('div');
+            scoresDiv.className = 'attention-scores';
+
+            var table = document.createElement('table');
+            for (var i = 0; i < tokens.length; i++) {
+                var row = document.createElement('tr');
+
+                var scoreCell = document.createElement('td');
+                scoreCell.textContent = attentionScores[tokenIndex][i].toFixed(2);
+                scoreCell.className = 'score';
+
+                var tokenCell = document.createElement('td');
+                tokenCell.textContent = tokens[i].textContent;
+
+                row.appendChild(scoreCell);
+                row.appendChild(tokenCell);
+
+                table.appendChild(row);
+            }
+            scoresDiv.appendChild(table);
+
+            sourceToken.appendChild(scoresDiv);
+        }
+
+        // Add event listeners to tokens
+        tokens.forEach(function(token) {
+            var tokenIndex = parseInt(token.getAttribute('data-token'));
+
+            token.addEventListener('mouseover', function() {
+                drawEdges(tokenIndex);
+            });
+
+            token.addEventListener('mouseout', function() {
+                removeEdges();
+            });
+
+            token.addEventListener('click', function() {
+                showAttentionScores(tokenIndex);
+            });
+        });
+    </script>
+</body>
+</html>
