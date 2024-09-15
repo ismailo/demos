@@ -2,7 +2,7 @@ import pygame
 import random
 import sys
 
-# Initialize Pygame
+# Initialize Pygame library
 pygame.init()
 
 # Screen dimensions and setup
